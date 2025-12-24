@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block title %}Upload Payment Receipt - College Bus Pass Management{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title mb-0"><i class="bi bi-receipt"></i> Upload Payment Receipt</h3>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <p><strong>Bus Pass Application:</strong> {{ bus_pass.route.source }} → {{ bus_pass.route.destination }}</p>
+                    <p><strong>Month:</strong> {{ bus_pass.month }}</p>
+                    <p><strong>Status:</strong> <span class="status-{{ bus_pass.status }}">{{ bus_pass.get_status_display }}</span></p>
+                </div>
+                
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="payment_receipt" class="form-label">Upload Payment Receipt</label>
+                        <input type="file" class="form-control" id="payment_receipt" name="payment_receipt" accept=".jpg,.jpeg,.png,.pdf" required>
+                        <div class="form-text">
+                            Please upload a clear image of your payment receipt (JPG, PNG, or PDF format)
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-upload"></i> Upload Receipt
+                        </button>
+                    </div>
+                </form>
+                
+                <div class="mt-4">
+                    <h5>Important Instructions:</h5>
+                    <ul>
+                        <li>Make sure the receipt is clearly visible and all text is readable</li>
+                        <li>Receipt should contain the payment amount, date, and your name</li>
+                        <li>Acceptable formats: JPG, JPEG, PNG, PDF</li>
+                        <li>Maximum file size: 5MB</li>
+                        <li>After uploading, your application will be sent for approval</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

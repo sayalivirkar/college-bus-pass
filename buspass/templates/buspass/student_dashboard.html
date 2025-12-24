@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - College Bus Pass Management{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h2><i class="bi bi-speedometer2"></i> Student Dashboard</h2>
+        <hr>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Total Passes</h6>
+                        <h3>{{ total_passes }}</h3>
+                    </div>
+                    <div style="font-size: 2rem;">
+                        <i class="bi bi-credit-card"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Approved</h6>
+                        <h3>{{ approved_passes }}</h3>
+                    </div>
+                    <div style="font-size: 2rem;">
+                        <i class="bi bi-check-circle"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Pending</h6>
+                        <h3>{{ pending_passes }}</h3>
+                    </div>
+                    <div style="font-size: 2rem;">
+                        <i class="bi bi-clock"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-danger">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Rejected</h6>
+                        <h3>{{ rejected_passes }}</h3>
+                    </div>
+                    <div style="font-size: 2rem;">
+                        <i class="bi bi-x-circle"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="bi bi-person"></i> Student Information</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr>
+                        <td><strong>Student ID:</strong></td>
+                        <td>{{ student.id }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Name:</strong></td>
+                        <td>{{ student.fullname }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Class:</strong></td>
+                        <td>{{ student.class_name }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>College ID:</strong></td>
+                        <td>{{ student.clgid }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Mobile:</strong></td>
+                        <td>{{ student.mobile }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Email:</strong></td>
+                        <td>{{ student.email }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Route:</strong></td>
+                        <td>{{ student.route1 }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="bi bi-person-circle" style="font-size: 4rem;"></i>
+                <h5 class="mt-2">{{ student.fullname }}</h5>
+                <p class="text-muted">{{ student.class_name }} | {{ student.id }}</p>
+                <a href="{% url 'apply_bus_pass' %}" class="btn btn-success w-100">
+                    <i class="bi bi-plus-circle"></i> Apply New Pass
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0"><i class="bi bi-credit-card-list"></i> Bus Pass History</h5>
+            </div>
+            <div class="card-body">
+                {% if bus_passes %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Route</th>
+                                <th>Month</th>
+                                <th>Issue Date</th>
+                                <th>Expiry Date</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for pass in bus_passes %}
+                            <tr>
+                                <td>{{ pass.route.source }} → {{ pass.route.destination }}</td>
+                                <td>{{ pass.month }}</td>
+                                <td>{{ pass.issue_date }}</td>
+                                <td>{{ pass.expiry_date }}</td>
+                                <td>
+                                    <span class="status-{{ pass.status }}">{{ pass.get_status_display }}</span>
+                                </td>
+                                <td>
+                                    {% if pass.status == 'approved' %}
+                                        <a href="{% url 'download_bus_pass' pass.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-download"></i> Download
+                                        </a>
+                                    {% else %}
+                                        <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-center text-muted">No bus passes found. <a href="{% url 'apply_bus_pass' %}">Apply for a new pass</a>.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+
+{% block title %}Apply Bus Pass - College Bus Pass Management{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title mb-0"><i class="bi bi-credit-card"></i> Apply for Bus Pass</h3>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="route" class="form-label">Select Route</label>
+                        <select class="form-select" id="route" name="route" required onchange="updatePrice()">
+                            <option value="">Choose a route...</option>
+                            {% for route in routes %}
+                            <option value="{{ route.id }}" data-name="{{ route.name }}">{{ route.source }} → {{ route.destination }} ({{ route.name }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="month" class="form-label">Select Month</label>
+                        <select class="form-select" id="month" name="month" required onchange="updatePrice()">
+                            <option value="">Choose a month...</option>
+                            <option value="January">January</option>
+                            <option value="February">February</option>
+                            <option value="March">March</option>
+                            <option value="April">April</option>
+                            <option value="May">May</option>
+                            <option value="June">June</option>
+                            <option value="July">July</option>
+                            <option value="August">August</option>
+                            <option value="September">September</option>
+                            <option value="October">October</option>
+                            <option value="November">November</option>
+                            <option value="December">December</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3 p-3 bg-light rounded">
+                        <h5>Selected Route & Month Details</h5>
+                        <p><strong>Selected Route:</strong> <span id="selectedRoute">--</span></p>
+                        <p><strong>Selected Month:</strong> <span id="selectedMonth">--</span></p>
+                        <p><strong>Price:</strong> <span id="selectedPrice" class="text-success fw-bold">--</span></p>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-circle"></i> Apply for Pass
+                        </button>
+                    </div>
+                </form>
+                
+                <div class="mt-4">
+                    <h5>Available Routes & Pricing</h5>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Route Name</th>
+                                    <th>Source</th>
+                                    <th>Destination</th>
+                                    <th>Active</th>
+                                    <th>Monthly Price (₹)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for route in routes %}
+                                <tr>
+                                    <td>{{ route.name }}</td>
+                                    <td>{{ route.source }}</td>
+                                    <td>{{ route.destination }}</td>
+                                    <td>
+                                        {% if route.is_active %}
+                                            <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <!-- Show example price for January, or first available price -->
+                                        {% for route_price in route.prices.all %}
+                                            {% if route_price.month == 'January' %}
+                                                ₹{{ route_price.price }}
+                                            {% elif forloop.first %}
+                                                ₹{{ route_price.price }}
+                                            {% endif %}
+                                        {% empty %}
+                                            --
+                                        {% endfor %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <script>
+                    // Create route prices data from Django template
+                    var routePrices = {};
+                    {% for route_price in route_prices %}
+                    if (!routePrices["{{ route_price.route.id }}"]) {
+                        routePrices["{{ route_price.route.id }}"] = {};
+                    }
+                    routePrices["{{ route_price.route.id }}"]["{{ route_price.month }}"] = {{ route_price.price }};
+                    {% endfor %}
+                    
+                    function updatePrice() {
+                        var routeSelect = document.getElementById('route');
+                        var monthSelect = document.getElementById('month');
+                        var selectedRoute = routeSelect.value;
+                        var selectedMonth = monthSelect.value;
+                        
+                        // Update selected route name
+                        var selectedRouteOption = routeSelect.options[routeSelect.selectedIndex];
+                        var routeName = selectedRouteOption ? selectedRouteOption.getAttribute('data-name') : '--';
+                        document.getElementById('selectedRoute').textContent = routeName;
+                        
+                        // Update selected month
+                        document.getElementById('selectedMonth').textContent = selectedMonth || '--';
+                        
+                        // Update price based on selection
+                        var priceElement = document.getElementById('selectedPrice');
+                        if (selectedRoute && selectedMonth) {
+                            var routePrice = routePrices[selectedRoute] && routePrices[selectedRoute][selectedMonth];
+                            if (routePrice !== undefined) {
+                                priceElement.textContent = '₹' + routePrice;
+                                priceElement.className = 'text-success fw-bold';
+                            } else {
+                                priceElement.textContent = 'Price not available';
+                                priceElement.className = 'text-danger';
+                            }
+                        } else {
+                            priceElement.textContent = '--';
+                            priceElement.className = 'text-success fw-bold';
+                        }
+                    }
+                </script>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -9,9 +9,9 @@ services:
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: buspass_project.settings
-      - key: DEBUG
-        value: False
       - key: SECRET_KEY
-        sync: true
-      - key: DATABASE_URL
-        sync: true
+        generateValue: true
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: WEB_CONCURRENCY
+        value: 4

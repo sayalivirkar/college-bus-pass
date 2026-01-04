@@ -11,9 +11,10 @@
             </div>
             <div class="card-body">
                 <div class="alert alert-info">
-                    <p><strong>Bus Pass Application:</strong> {{ bus_pass.route.source }} → {{ bus_pass.route.destination }}</p>
-                    <p><strong>Semester:</strong> {{ bus_pass.semester }}</p>
-                    <p><strong>Status:</strong> <span class="status-{{ bus_pass.status }}">{{ bus_pass.get_status_display }}</span></p>
+                    <p><strong>Multi-Semester Bus Pass Application:</strong> {{ application.route.source }} → {{ application.route.destination }}</p>
+                    <p><strong>Semesters:</strong> {{ application.get_semesters_display|default:"N/A" }}</p>
+                    <p><strong>Total Amount:</strong> ₹{{ application.total_amount }}</p>
+                    <p><strong>Status:</strong> <span class="status-{{ application.status }}">{{ application.get_status_display }}</span></p>
                 </div>
                 
                 <form method="post" enctype="multipart/form-data">

@@ -140,7 +140,7 @@
                         <thead>
                             <tr>
                                 <th>Route</th>
-                                <th>Month</th>
+                                <th>Semester</th>
                                 <th>Issue Date</th>
                                 <th>Expiry Date</th>
                                 <th>Status</th>
@@ -151,7 +151,7 @@
                             {% for pass in bus_passes %}
                             <tr>
                                 <td>{{ pass.route.source }} → {{ pass.route.destination }}</td>
-                                <td>{{ pass.month }}</td>
+                                <td>{{ pass.semester }}</td>
                                 <td>{{ pass.issue_date }}</td>
                                 <td>{{ pass.expiry_date }}</td>
                                 <td>

@@ -14,6 +14,22 @@
                     {% csrf_token %}
                     
                     <div class="mb-3">
+                        <label class="form-label">Select Application Type</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="application_type" id="single_semester" value="single" onchange="toggleSemesterSelection()" checked>
+                            <label class="form-check-label" for="single_semester">
+                                Single Semester
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="application_type" id="multiple_semesters" value="multiple" onchange="toggleSemesterSelection()">
+                            <label class="form-check-label" for="multiple_semesters">
+                                Multiple Continuous Semesters
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
                         <label for="route" class="form-label">Select Route</label>
                         <select class="form-select" id="route" name="route" required onchange="updatePrice()">
                             <option value="">Choose a route...</option>
@@ -23,29 +39,40 @@
                         </select>
                     </div>
                     
-                    <div class="mb-3">
-                        <label for="month" class="form-label">Select Month</label>
-                        <select class="form-select" id="month" name="month" required onchange="updatePrice()">
-                            <option value="">Choose a month...</option>
-                            <option value="January">January</option>
-                            <option value="February">February</option>
-                            <option value="March">March</option>
-                            <option value="April">April</option>
-                            <option value="May">May</option>
-                            <option value="June">June</option>
-                            <option value="July">July</option>
-                            <option value="August">August</option>
-                            <option value="September">September</option>
-                            <option value="October">October</option>
-                            <option value="November">November</option>
-                            <option value="December">December</option>
+                    <div id="single_semester_section" class="mb-3">
+                        <label for="single_semester_select" class="form-label">Select Semester</label>
+                        <select class="form-select" id="single_semester_select" name="semester" onchange="updatePrice()">
+                            <option value="">Choose a semester...</option>
+                            <option value="Semester-1">Semester-1</option>
+                            <option value="Semester-2">Semester-2</option>
+                            <option value="Semester-3">Semester-3</option>
+                            <option value="Semester-4">Semester-4</option>
+                            <option value="Semester-5">Semester-5</option>
+                            <option value="Semester-6">Semester-6</option>
                         </select>
                     </div>
                     
+                    <div id="multiple_semesters_section" class="mb-3" style="display: none;">
+                        <label for="multiple_semesters_select" class="form-label">Select Continuous Semesters</label>
+                        <select class="form-select" id="multiple_semesters_select" name="semesters" multiple onchange="updatePrice()">
+                            <option value="Semester-1">Semester-1</option>
+                            <option value="Semester-2">Semester-2</option>
+                            <option value="Semester-3">Semester-3</option>
+                            <option value="Semester-4">Semester-4</option>
+                            <option value="Semester-5">Semester-5</option>
+                            <option value="Semester-6">Semester-6</option>
+                        </select>
+                        <div class="form-text">Hold Ctrl to select multiple continuous semesters (e.g., Semester-1 and Semester-2)</div>
+                    </div>
+                    
                     <div class="mb-3 p-3 bg-light rounded">
-                        <h5>Selected Route & Month Details</h5>
+                        <h5>Selected Route & Semester Details</h5>
                         <p><strong>Selected Route:</strong> <span id="selectedRoute">--</span></p>
-                        <p><strong>Selected Month:</strong> <span id="selectedMonth">--</span></p>
+                        <p><strong>Selected Semester(s):</strong> <span id="selectedSemester">--</span></p>
+                        <p><strong>Driver Name:</strong> <span id="driverName">--</span></p>
+                        <p><strong>Driver Contact:</strong> <span id="driverContact">--</span></p>
+                        <p><strong>Arrival Time at Source:</strong> <span id="arrivalTimeSource">--</span></p>
+                        <p><strong>Arrival Time at Destination:</strong> <span id="arrivalTimeDestination">--</span></p>
                         <p><strong>Price:</strong> <span id="selectedPrice" class="text-success fw-bold">--</span></p>
                     </div>
                     
@@ -85,7 +112,7 @@
                                     <td>
                                         <!-- Show example price for January, or first available price -->
                                         {% for route_price in route.prices.all %}
-                                            {% if route_price.month == 'January' %}
+                                            {% if route_price.semester == 'Semester-1' %}
                                                 ₹{{ route_price.price }}
                                             {% elif forloop.first %}
                                                 ₹{{ route_price.price }}
@@ -108,29 +135,118 @@
                     if (!routePrices["{{ route_price.route.id }}"]) {
                         routePrices["{{ route_price.route.id }}"] = {};
                     }
-                    routePrices["{{ route_price.route.id }}"]["{{ route_price.month }}"] = {{ route_price.price }};
+                    routePrices["{{ route_price.route.id }}"]["{{ route_price.semester }}"] = {{ route_price.price }};
                     {% endfor %}
+                    
+                    // Create route details data from Django template
+                    var routeDetails = {};
+                    {% for route in routes %}
+                    routeDetails["{{ route.id }}"] = {
+                        driverName: "{{ route.driver_name|escapejs }}",
+                        driverContact: "{{ route.driver_contact|escapejs }}",
+                        arrivalTimeAtSource: "{{ route.arrival_time_at_source|time:"H:i" }}",
+                        arrivalTimeAtDestination: "{{ route.arrival_time_at_destination|time:"H:i" }}"
+                    };
+                    {% endfor %}
+                    
+                    function toggleSemesterSelection() {
+                        var singleSemesterChecked = document.getElementById('single_semester').checked;
+                        
+                        if (singleSemesterChecked) {
+                            document.getElementById('single_semester_section').style.display = 'block';
+                            document.getElementById('multiple_semesters_section').style.display = 'none';
+                        } else {
+                            document.getElementById('single_semester_section').style.display = 'none';
+                            document.getElementById('multiple_semesters_section').style.display = 'block';
+                        }
+                        
+                        // Reset selections when switching
+                        document.getElementById('single_semester_select').value = '';
+                        var multiSelect = document.getElementById('multiple_semesters_select');
+                        for (var i = 0; i < multiSelect.options.length; i++) {
+                            multiSelect.options[i].selected = false;
+                        }
+                        
+                        // Update price display
+                        document.getElementById('selectedRoute').textContent = '--';
+                        document.getElementById('selectedSemester').textContent = '--';
+                        document.getElementById('selectedPrice').textContent = '--';
+                        document.getElementById('selectedPrice').className = 'text-success fw-bold';
+                        // Clear route details
+                        document.getElementById('driverName').textContent = '--';
+                        document.getElementById('driverContact').textContent = '--';
+                        document.getElementById('arrivalTimeSource').textContent = '--';
+                        document.getElementById('arrivalTimeDestination').textContent = '--';
+                    }
                     
                     function updatePrice() {
                         var routeSelect = document.getElementById('route');
-                        var monthSelect = document.getElementById('month');
                         var selectedRoute = routeSelect.value;
-                        var selectedMonth = monthSelect.value;
+                        
+                        var singleSemesterChecked = document.getElementById('single_semester').checked;
+                        var selectedSemester = '';
+                        var selectedSemesters = [];
+                        var totalPrice = 0;
+                        
+                        if (singleSemesterChecked) {
+                            // Single semester selection
+                            selectedSemester = document.getElementById('single_semester_select').value;
+                            if (selectedSemester) {
+                                selectedSemesters = [selectedSemester];
+                                var routePrice = routePrices[selectedRoute] && routePrices[selectedRoute][selectedSemester];
+                                if (routePrice !== undefined) {
+                                    totalPrice = routePrice;
+                                }
+                            }
+                        } else {
+                            // Multiple semester selection
+                            var multiSelect = document.getElementById('multiple_semesters_select');
+                            for (var i = 0; i < multiSelect.options.length; i++) {
+                                if (multiSelect.options[i].selected) {
+                                    selectedSemesters.push(multiSelect.options[i].value);
+                                }
+                            }
+                            
+                            // Calculate total price for all selected semesters
+                            var allPricesAvailable = true;
+                            for (var i = 0; i < selectedSemesters.length; i++) {
+                                var semester = selectedSemesters[i];
+                                var routePrice = routePrices[selectedRoute] && routePrices[selectedRoute][semester];
+                                if (routePrice !== undefined) {
+                                    totalPrice += routePrice;
+                                } else {
+                                    allPricesAvailable = false;
+                                    break;
+                                }
+                            }
+                        }
                         
                         // Update selected route name
                         var selectedRouteOption = routeSelect.options[routeSelect.selectedIndex];
                         var routeName = selectedRouteOption ? selectedRouteOption.getAttribute('data-name') : '--';
                         document.getElementById('selectedRoute').textContent = routeName;
                         
-                        // Update selected month
-                        document.getElementById('selectedMonth').textContent = selectedMonth || '--';
+                        // Update route details if route is selected
+                        if (selectedRoute && routeDetails[selectedRoute]) {
+                            document.getElementById('driverName').textContent = routeDetails[selectedRoute].driverName;
+                            document.getElementById('driverContact').textContent = routeDetails[selectedRoute].driverContact;
+                            document.getElementById('arrivalTimeSource').textContent = routeDetails[selectedRoute].arrivalTimeAtSource;
+                            document.getElementById('arrivalTimeDestination').textContent = routeDetails[selectedRoute].arrivalTimeAtDestination;
+                        } else {
+                            document.getElementById('driverName').textContent = '--';
+                            document.getElementById('driverContact').textContent = '--';
+                            document.getElementById('arrivalTimeSource').textContent = '--';
+                            document.getElementById('arrivalTimeDestination').textContent = '--';
+                        }
                         
-                        // Update price based on selection
+                        // Update selected semesters display
+                        document.getElementById('selectedSemester').textContent = selectedSemesters.length > 0 ? selectedSemesters.join(', ') : '--';
+                        
+                        // Update price display
                         var priceElement = document.getElementById('selectedPrice');
-                        if (selectedRoute && selectedMonth) {
-                            var routePrice = routePrices[selectedRoute] && routePrices[selectedRoute][selectedMonth];
-                            if (routePrice !== undefined) {
-                                priceElement.textContent = '₹' + routePrice;
+                        if (selectedRoute && selectedSemesters.length > 0) {
+                            if (singleSemesterChecked || (selectedSemesters.length > 0 && totalPrice > 0)) {
+                                priceElement.textContent = '₹' + totalPrice;
                                 priceElement.className = 'text-success fw-bold';
                             } else {
                                 priceElement.textContent = 'Price not available';

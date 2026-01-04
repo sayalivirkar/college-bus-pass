@@ -8,7 +8,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Q
 from django.utils import timezone
 from datetime import date, datetime, timedelta
-from .models import Student, Route, RoutePrice, BusPass
+from .models import Student, Route, RoutePrice, BusPass, MultiSemesterBusPassApplication
 from django.contrib.auth.models import User
 import qrcode
 from io import BytesIO
@@ -22,6 +22,29 @@ from reportlab.lib import colors
 from reportlab.lib.units import inch
 import os
 from django.contrib.auth.hashers import make_password, check_password
+
+
+def are_semesters_continuous(semesters_list):
+    """Check if the selected semesters are continuous (e.g., Semester-1 and Semester-2, not Semester-1 and Semester-3)"""
+    # Convert semester strings to numbers for comparison
+    semester_numbers = []
+    for sem in semesters_list:
+        try:
+            # Extract number from 'Semester-X'
+            num = int(sem.split('-')[1])
+            semester_numbers.append(num)
+        except (IndexError, ValueError):
+            return False
+    
+    # Sort the numbers
+    semester_numbers.sort()
+    
+    # Check if they are consecutive
+    for i in range(1, len(semester_numbers)):
+        if semester_numbers[i] != semester_numbers[i-1] + 1:
+            return False
+    
+    return True
 
 
 def student_login(request):
@@ -118,93 +141,137 @@ def apply_bus_pass(request):
     
     student = get_object_or_404(Student, id=student_id)
     
-    # Check if student already has an active pass for the current month
-    current_month = date.today().strftime('%B')
-    existing_pass = BusPass.objects.filter(
-        student=student,
-        month=current_month,
-        status__in=['pending', 'approved']
-    ).first()
-    
-    if existing_pass:
-        messages.error(request, f'You already have a {existing_pass.status} bus pass for {current_month}!')
-        return redirect('student_dashboard')
-    
     routes = Route.objects.filter(is_active=True)
     route_prices = RoutePrice.objects.filter(route__in=routes)
     
     if request.method == 'POST':
         route_id = request.POST.get('route')
-        month = request.POST.get('month')
+        application_type = request.POST.get('application_type', 'single')
         
         route = get_object_or_404(Route, id=route_id)
         
-        # Get the price for this route and month
-        try:
-            route_price = RoutePrice.objects.get(route=route, month=month)
-        except RoutePrice.DoesNotExist:
-            messages.error(request, 'Price not found for selected route and month!')
-            return redirect('apply_bus_pass')
-        
-        # Calculate expiry date (end of the selected month)
-        year = date.today().year
-        if month == 'January': expiry_month = 1
-        elif month == 'February': expiry_month = 2
-        elif month == 'March': expiry_month = 3
-        elif month == 'April': expiry_month = 4
-        elif month == 'May': expiry_month = 5
-        elif month == 'June': expiry_month = 6
-        elif month == 'July': expiry_month = 7
-        elif month == 'August': expiry_month = 8
-        elif month == 'September': expiry_month = 9
-        elif month == 'October': expiry_month = 10
-        elif month == 'November': expiry_month = 11
-        elif month == 'December': expiry_month = 12
-        else: expiry_month = date.today().month
-        
-        # Calculate last day of the month
-        if expiry_month in [1, 3, 5, 7, 8, 10, 12]:
-            expiry_day = 31
-        elif expiry_month in [4, 6, 9, 11]:
-            expiry_day = 30
-        else:  # February
-            expiry_day = 29 if year % 4 == 0 else 28
-        
-        expiry_date = date(year, expiry_month, expiry_day)
-        
-        # Create the bus pass
-        bus_pass = BusPass.objects.create(
-            student=student,
-            route=route,
-            month=month,
-            expiry_date=expiry_date,
-            status='pending',
-        )
-        
-        # Generate QR code
-        qr_data = f"{bus_pass.id}|{student.id}|{student.fullname}|{route.name}|{month}|{expiry_date}"
-        qr = qrcode.QRCode(
-            version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_L,
-            box_size=4,
-            border=4,
-        )
-        qr.add_data(qr_data)
-        qr.make(fit=True)
-        
-        img = qr.make_image(fill_color="black", back_color="white")
-        
-        # Save QR code to the bus pass model
-        buffer = BytesIO()
-        img.save(buffer, format='PNG')
-        buffer.seek(0)
-        
-        # Create a filename for the QR code
-        qr_filename = f'bus_pass_qr_{bus_pass.id}.png'
-        bus_pass.qr_code.save(qr_filename, File(buffer), save=True)
-        
-        messages.success(request, 'Bus pass application submitted successfully! Please upload payment receipt to complete the process.')
-        return redirect('upload_payment_receipt', pass_id=bus_pass.id)
+        if application_type == 'single':
+            # Single semester application
+            semester = request.POST.get('semester')
+            
+            if not semester:
+                messages.error(request, 'Please select a semester!')
+                return redirect('apply_bus_pass')
+            
+            selected_semesters = [semester]
+            
+            # Get the price for this route and semester
+            try:
+                route_price = RoutePrice.objects.get(route=route, semester=semester)
+                total_amount = float(route_price.price)
+            except RoutePrice.DoesNotExist:
+                messages.error(request, 'Price not found for selected route and semester!')
+                return redirect('apply_bus_pass')
+            
+            # Calculate expiry date based on the semester
+            year = date.today().year
+            if semester == 'Semester-1':
+                # Semester 1: Jan-June, expiry at end of June
+                expiry_month = 6
+                expiry_day = 30
+            elif semester == 'Semester-2':
+                # Semester 2: July-Dec, expiry at end of December
+                expiry_month = 12
+                expiry_day = 31
+            elif semester == 'Semester-3':
+                # For demonstration - could be different months
+                expiry_month = 6
+                expiry_day = 30
+            elif semester == 'Semester-4':
+                expiry_month = 12
+                expiry_day = 31
+            elif semester == 'Semester-5':
+                expiry_month = 6
+                expiry_day = 30
+            elif semester == 'Semester-6':
+                expiry_month = 12
+                expiry_day = 31
+            else:
+                # Default to current month
+                expiry_month = date.today().month
+                if expiry_month in [1, 3, 5, 7, 8, 10, 12]:
+                    expiry_day = 31
+                elif expiry_month in [4, 6, 9, 11]:
+                    expiry_day = 30
+                else:  # February
+                    expiry_day = 29 if year % 4 == 0 else 28
+            
+            expiry_date = date(year, expiry_month, expiry_day)
+            
+            # Create the bus pass
+            bus_pass = BusPass.objects.create(
+                student=student,
+                route=route,
+                semester=semester,
+                expiry_date=expiry_date,
+                status='pending',
+            )
+            
+            # Generate QR code
+            qr_data = f"{bus_pass.id}|{student.id}|{student.fullname}|{route.name}|{semester}|{expiry_date}"
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_L,
+                box_size=4,
+                border=4,
+            )
+            qr.add_data(qr_data)
+            qr.make(fit=True)
+            
+            img = qr.make_image(fill_color="black", back_color="white")
+            
+            # Save QR code to the bus pass model
+            buffer = BytesIO()
+            img.save(buffer, format='PNG')
+            buffer.seek(0)
+            
+            # Create a filename for the QR code
+            qr_filename = f'bus_pass_qr_{bus_pass.id}.png'
+            bus_pass.qr_code.save(qr_filename, File(buffer), save=True)
+            
+            messages.success(request, f'Bus pass application submitted successfully for {semester}! Please upload payment receipt to complete the process.')
+            return redirect('upload_payment_receipt', pass_id=bus_pass.id)
+        else:
+            # Multiple semester application
+            selected_semesters = request.POST.getlist('semesters')
+            
+            if not selected_semesters:
+                messages.error(request, 'Please select at least one semester!')
+                return redirect('apply_bus_pass')
+            
+            # Validate that semesters are continuous
+            if not are_semesters_continuous(selected_semesters):
+                messages.error(request, 'Please select continuous semesters only! For example: Semester-1 and Semester-2, but not Semester-1 and Semester-3.')
+                return redirect('apply_bus_pass')
+            
+            # Calculate total amount
+            total_amount = 0
+            for semester in selected_semesters:
+                try:
+                    route_price = RoutePrice.objects.get(route=route, semester=semester)
+                    total_amount += float(route_price.price)
+                except RoutePrice.DoesNotExist:
+                    messages.error(request, f'Price not found for selected route and semester {semester}!')
+                    return redirect('apply_bus_pass')
+            
+            # Create multi-semester application
+            import json
+            
+            application = MultiSemesterBusPassApplication.objects.create(
+                student=student,
+                route=route,
+                semesters=json.dumps(selected_semesters),
+                total_amount=total_amount,
+                status='pending',
+            )
+            
+            messages.success(request, f'Multi-semester bus pass application submitted successfully for {len(selected_semesters)} semesters! Total amount: ₹{total_amount}. Please upload payment receipt to complete the process.')
+            return redirect('upload_multi_semester_payment_receipt', application_id=application.id)
     
     context = {
         'student': student,
@@ -248,6 +315,42 @@ def upload_payment_receipt(request, pass_id):
         'bus_pass': bus_pass,
     }
     return render(request, 'buspass/upload_receipt.html', context)
+
+
+def upload_multi_semester_payment_receipt(request, application_id):
+    # Custom login check since we're using session-based auth for students
+    if not request.session.get('student_logged_in'):
+        messages.error(request, 'Please login first!')
+        return redirect('student_login')
+    
+    student_id = request.session.get('student_id')
+    if not student_id:
+        messages.error(request, 'Please login first!')
+        return redirect('student_login')
+    
+    student = get_object_or_404(Student, id=student_id)
+    application = get_object_or_404(MultiSemesterBusPassApplication, id=application_id, student=student)
+    
+    if request.method == 'POST' and 'payment_receipt' in request.FILES:
+        receipt = request.FILES['payment_receipt']
+        
+        # Validate file type
+        allowed_extensions = ['.jpg', '.jpeg', '.png', '.pdf']
+        ext = os.path.splitext(receipt.name)[1].lower()
+        if ext not in allowed_extensions:
+            messages.error(request, 'Invalid file type. Please upload JPG, PNG, or PDF files only.')
+            return render(request, 'buspass/upload_receipt.html', {'application': application})
+        
+        application.payment_receipt = receipt
+        application.save()
+        
+        messages.success(request, 'Payment receipt uploaded successfully! Your multi-semester application is now pending for approval.')
+        return redirect('student_dashboard')
+    
+    context = {
+        'application': application,
+    }
+    return render(request, 'buspass/upload_multi_semester_receipt.html', context)
 
 
 def download_bus_pass(request, pass_id):
@@ -296,7 +399,15 @@ def download_bus_pass(request, pass_id):
     # Route Information
     p.drawString(100, y_position, f"Route: {bus_pass.route.source} → {bus_pass.route.destination}")
     y_position -= 20
-    p.drawString(100, y_position, f"Month: {bus_pass.month}")
+    p.drawString(100, y_position, f"Semester: {bus_pass.semester}")
+    y_position -= 20
+    p.drawString(100, y_position, f"Driver Name: {bus_pass.route.driver_name}")
+    y_position -= 20
+    p.drawString(100, y_position, f"Driver Contact: {bus_pass.route.driver_contact}")
+    y_position -= 20
+    p.drawString(100, y_position, f"Arrival at Source: {bus_pass.route.arrival_time_at_source.strftime('%H:%M')}")
+    y_position -= 20
+    p.drawString(100, y_position, f"Arrival at Destination: {bus_pass.route.arrival_time_at_destination.strftime('%H:%M')}")
     y_position -= 20
     p.drawString(100, y_position, f"Issue Date: {bus_pass.issue_date.strftime('%d %B, %Y')}")
     y_position -= 20
